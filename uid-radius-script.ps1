@@ -126,52 +126,49 @@ Function ProcessDHCPClients
 		$global:strEventUser = $global:strEventUser.Substring($pos+1)
 	}
 
-	If (-Not ($global:strEventUser.contains("$")))
+	If (-Not ($global:strEventUser.contains("$")) -and -Not ($global:strEventUser.contains("host/")) )
 	{
-		If (-Not ($global:strEventUser.contains("host/")))
+		If ($global:strCallingStation -match "\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")
 		{
-			If ($global:strCallingStation -match "\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")
+			$aMatchedIPs = @()
+			$aMatchedIPs += $global:strCallingStation
+		}
+		Else
+		{
+			$aMatchedIPs = @()
+			foreach ($DHCPServer in $global:aDHCPServers) 
 			{
-				$aMatchedIPs = @()
-				$aMatchedIPs += $global:strCallingStation
+				$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
+				foreach ($scope in $scopes) 
+				{
+                       			$matchedIP = (Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | ? ClientID -match $global:strCallingStation | select IPAddress).IPAddress
+                       			If (-Not ($matchedIP -eq $null))
+                       			{
+					    $aMatchedIPs += $matchedIP
+                       			}
+        			}
+			}
+		}
+		foreach ($address in $aMatchedIPs)
+		{
+			[string]$strXMLLine = "<uid-message><version>1.0</version><type>update</type><payload><login>"
+			If ($global:blnAgent -eq "1")
+			{
+				$strXMLLine = $strXMLLine + "<entry name=""" + $global:strDomain + "\" + $global:strEventUser + """ ip=""" + $address + """/>"
 			}
 			Else
 			{
-				$aMatchedIPs = @()
-				foreach ($DHCPServer in $global:aDHCPServers) 
+				If ($global:strProxy -eq "1")
 				{
-					$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
-					foreach ($scope in $scopes) 
-					{
-                        $matchedIP = (Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | ? ClientID -match $global:strCallingStation | select IPAddress).IPAddress
-                        If (-Not ($matchedIP -eq $null))
-                        {
-						    $aMatchedIPs += $matchedIP
-                        }
-        			}
+					$strXMLLine = $strXMLLine + "<entry name=""" + $global:strDomain + "\" + $global:strEventUser + """ ip=""" + $address + """ timeout=""" + $global:strTimeout + """ vsys=""" + $global:strVsys + """/>"
+				}
+				Else 
+				{
+					$strXMLLine = $strXMLLine + "<entry name=""" + $global:strDomain + "\" + $global:strEventUser + """ ip=""" + $address + """ timeout=""" + $global:strTimeout + """/>"
 				}
 			}
-			foreach ($address in $aMatchedIPs)
-			{
-				[string]$strXMLLine = "<uid-message><version>1.0</version><type>update</type><payload><login>"
-				If ($global:blnAgent -eq "1")
-				{
-					$strXMLLine = $strXMLLine + "<entry name=""" + $global:strDomain + "\" + $global:strEventUser + """ ip=""" + $address + """/>"
-				}
-				Else
-				{
-					If ($global:strProxy -eq "1")
-					{
-						$strXMLLine = $strXMLLine + "<entry name=""" + $global:strDomain + "\" + $global:strEventUser + """ ip=""" + $address + """ timeout=""" + $global:strTimeout + """ vsys=""" + $global:strVsys + """/>"
-					}
-					Else 
-					{
-						$strXMLLine = $strXMLLine + "<entry name=""" + $global:strDomain + "\" + $global:strEventUser + """ ip=""" + $address + """ timeout=""" + $global:strTimeout + """/>"
-					}
-				}
-				$strXMLLine = $strXMLLine + "</login></payload></uid-message>"
-				PostToAgent $strXMLLine
-			}
+			$strXMLLine = $strXMLLine + "</login></payload></uid-message>"
+			PostToAgent $strXMLLine
 		}
 	}
 }
