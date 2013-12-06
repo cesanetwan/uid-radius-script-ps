@@ -132,7 +132,6 @@ Function ProcessDHCPClients
 		{
 			If ($global:strCallingStation -match "\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")
 			{
-                Write-Host "here"
 				$aMatchedIPs = @()
 				$aMatchedIPs += $global:strCallingStation
 			}
