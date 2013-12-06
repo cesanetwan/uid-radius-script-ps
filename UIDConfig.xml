@@ -10,7 +10,7 @@
 <AgentPort>5006</AgentPort>
 <Debug>2</Debug>
 <DHCPServer>labboss</DHCPServer>
-<Key>LUFRPT15S0g2dE90eDV6SndpK2JWakFyUFFYTnBmcnc9aWZMNmgyR3dDeTBlTTNlZTdjbUhCUT09</Key>
+<Key>Key</Key>
 <VSYS>vsys5</VSYS>
 <Agent>0</Agent>
 <Timeout>120</Timeout>
