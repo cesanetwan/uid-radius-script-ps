@@ -1,1 +1,0 @@
-Quick port of the basic functionality of the UID RADIUS Auth VBS Script to Powershell to utilise more robust features. Currently only functional under Windows Server 2012 using the DHCP method. Minimal debugging/testing, use at own peril.
