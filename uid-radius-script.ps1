@@ -1,4 +1,5 @@
 param([string]$global:strEventUser, [string]$global:strCallingStation)
+$ErrorActionPreference = Stop
 
 $global:aClientIPs = @()
 $global:aExclusions = @()
@@ -69,12 +70,6 @@ Function CreateDefaultConfig
         $XmlWriter.WriteEndDocument()
         $XmlWriter.Flush()
         $XmlWriter.Close()
-}
-
-Function LoadExclusions
-{
-        param([string]$strExclusionPath)
-        $global:aExclusions = Get-Content $strExclusionPath
 }
 
 Function PostToAgent
@@ -190,27 +185,37 @@ Function ProcessDHCPClients
         }
 }
 
-If (Test-Path -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\UIDConfig.xml") 
+Try
 {
-        [xml]$global:cfgXML = Get-Content "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\UIDConfig.xml"
-}
-Else
-{
-        CreateDefaultConfig
-        [xml]$global:cfgXML = Get-Content "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\UIDConfig.xml"
-}
-LoadConfig
-LoadExclusions "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\ignore_user_list.txt"
+        If (Test-Path -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\UIDConfig.xml") 
+        {
+                [xml]$global:cfgXML = Get-Content "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\UIDConfig.xml"
+        }
+        Else
+        {
+                CreateDefaultConfig
+                [xml]$global:cfgXML = Get-Content "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\UIDConfig.xml"
+        }
+        LoadConfig
 
-If ($global:strLogFormat -eq "DTS")
-{
-        #ProcessDTSLog
+        If ($global:strLogFormat -eq "DTS")
+        {
+                #ProcessDTSLog
+        }
+        ElseIf ($global:strLogFormat -eq "IAS")
+        {
+                #ProcessIASLog
+        }
+        ElseIf ($global:strLogFormat -eq "DHCP")
+        {
+                ProcessDHCPClients
+        }
 }
-ElseIf ($global:strLogFormat -eq "IAS")
+Catch
 {
-        #ProcessIASLog
-}
-ElseIf ($global:strLogFormat -eq "DHCP")
-{
-        ProcessDHCPClients
+    $ErrorMessage = $_.Exception.Message
+    $FailedItem = $_.Exception.ItemName
+    $ErrorLog = $FailedItem + " failed with message " + $ErrorMessage
+    add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uidradiuserrors.log" -Value $ErrorLog -Force
+    Break
 }
