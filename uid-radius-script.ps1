@@ -131,36 +131,37 @@ Function ProcessDHCPClients
                 Else
                 {
                         $aMatchedIPs = @()
-						If (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2012"))
+			If (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2012"))
+			{
+				foreach ($DHCPServer in $global:aDHCPServers) 
+				{
+					$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
+					foreach ($scope in $scopes) 
+					{
+                                        	$matchedIP = (Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | ? ClientID -match $global:strCallingStation | select IPAddress).IPAddress
+						If (-Not ($matchedIP -eq $null))
 						{
-							foreach ($DHCPServer in $global:aDHCPServers) 
-							{
-									$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
-									foreach ($scope in $scopes) 
-									{
-                                        $matchedIP = (Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | ? ClientID -match $global:strCallingStation | select IPAddress).IPAddress
-										If (-Not ($matchedIP -eq $null))
-										{
-											$aMatchedIPs += $matchedIP
-                                        }
-									}
-							}	
-						}
-						ElseIf (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2012"))
+							$aMatchedIPs += $matchedIP
+                                        	}
+					}
+				}	
+			}
+			ElseIf (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2012"))
+			{
+				foreach ($DHCPServer in $global:aDHCPServers) 
+				{
+					$scopes = Get-DHCPScope -Server $DHCPServer | select Address
+					foreach ($scope in $scopes) 
+					{
+                                	        $matchedIP = (Get-DHCPReservation -Scope $scope.Address | ? MACAddress -match $global:strCallingStation | select IPAddress).IPAddress
+						If (-Not ($matchedIP -eq $null))
 						{
-							foreach ($DHCPServer in $global:aDHCPServers) 
-							{
-									$scopes = Get-DHCPScope -Server $DHCPServer | select Address
-									foreach ($scope in $scopes) 
-									{
-                                        $matchedIP = (Get-DHCPReservation -Scope $scope.Address | ? MACAddress -match $global:strCallingStation | select IPAddress).IPAddress
-										If (-Not ($matchedIP -eq $null))
-										{
-											$aMatchedIPs += $matchedIP
-                                        }
-									}
-							}
-						}
+							$aMatchedIPs += $matchedIP
+                                        	}
+					}
+				}
+			}
+                }
                 foreach ($address in $aMatchedIPs)
                 {
                         [string]$strXMLLine = "<uid-message><version>1.0</version><type>update</type><payload><login>"
