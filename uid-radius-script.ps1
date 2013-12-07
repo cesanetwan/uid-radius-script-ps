@@ -113,6 +113,17 @@ Function PostToAgent
     	}
 }
 
+Function CleanMac
+{
+	param([string]$strMac)
+	$strMac = $strMac -replace "-", ""
+        $strMac = $strMac -replace "\.", ""
+        $strMac = $strMac -replace ":", ""
+        $strMac = $strMac.ToLower()
+        return $strMac
+}
+
+
 Function ProcessDHCPClients
 {
 	If ($global:strEventUser.contains("\"))
