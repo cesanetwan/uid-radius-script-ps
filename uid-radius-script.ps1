@@ -102,15 +102,15 @@ Function PostToAgent
         $outputStream.Write($bytes,0,$bytes.Length)  
         $outputStream.Close()
         try
-            {
-                [System.Net.HttpWebResponse]$response = [System.Net.HttpWebResponse]$request.GetResponse()     
-                $sr = New-Object System.IO.StreamReader($response.GetResponseStream())       
+        {
+        	[System.Net.HttpWebResponse]$response = [System.Net.HttpWebResponse]$request.GetResponse()     
+        	$sr = New-Object System.IO.StreamReader($response.GetResponseStream())       
                 $txt = $sr.ReadToEnd()          
-            }
-            catch [Net.WebException] { 
-                [System.Net.HttpWebResponse] $resp = [System.Net.HttpWebResponse] $_.Exception.Response  
-        
-            }
+	}
+        catch [Net.WebException] 
+        { 
+        	[System.Net.HttpWebResponse] $resp = [System.Net.HttpWebResponse] $_.Exception.Response  
+        }
 }
 
 Function ProcessDHCPClients
