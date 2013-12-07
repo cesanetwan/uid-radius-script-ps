@@ -146,7 +146,7 @@ Function ProcessDHCPClients
 					}
 				}	
 			}
-			ElseIf (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2012"))
+			ElseIf (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2008") -or ((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2003"))
 			{
 				foreach ($DHCPServer in $global:aDHCPServers) 
 				{
