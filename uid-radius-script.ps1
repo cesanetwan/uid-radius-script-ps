@@ -103,20 +103,20 @@ Function PostToAgent
         $outputStream.Close()
         try
         {
-        	[System.Net.HttpWebResponse]$response = [System.Net.HttpWebResponse]$request.GetResponse()     
-        	$sr = New-Object System.IO.StreamReader($response.GetResponseStream())       
+                [System.Net.HttpWebResponse]$response = [System.Net.HttpWebResponse]$request.GetResponse()     
+                $sr = New-Object System.IO.StreamReader($response.GetResponseStream())       
                 $txt = $sr.ReadToEnd()          
-	}
+        }
         catch [Net.WebException] 
         { 
-        	[System.Net.HttpWebResponse] $resp = [System.Net.HttpWebResponse] $_.Exception.Response  
+                [System.Net.HttpWebResponse] $resp = [System.Net.HttpWebResponse] $_.Exception.Response  
         }
 }
 
 Function CleanMac
 {
-	param([string]$strMac)
-	$strMac = $strMac -replace "-", ""
+        param([string]$strMac)
+        $strMac = $strMac -replace "-", ""
         $strMac = $strMac -replace "\.", ""
         $strMac = $strMac -replace ":", ""
         $strMac = $strMac.ToLower()
@@ -141,36 +141,46 @@ Function ProcessDHCPClients
                 Else
                 {
                         $aMatchedIPs = @()
-			If (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2012"))
-			{
-				foreach ($DHCPServer in $global:aDHCPServers) 
-				{
-					$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
-					foreach ($scope in $scopes) 
-					{
-                                        	$matchedIP = (Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | ? ClientID -match $global:strCallingStation | select IPAddress).IPAddress
-						If (-Not ($matchedIP -eq $null))
-						{
-							$aMatchedIPs += $matchedIP
-                                        	}
-					}
-				}	
-			}
-			ElseIf (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2008") -or ((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2003"))
-			{
-				foreach ($DHCPServer in $global:aDHCPServers) 
-				{
-					$scopes = Get-DHCPScope -Server $DHCPServer | select Address
-					foreach ($scope in $scopes) 
-					{
-                                	        $matchedIP = (Get-DHCPReservation -Scope $scope.Address | ? MACAddress -match $global:strCallingStation | select IPAddress).IPAddress
-						If (-Not ($matchedIP -eq $null))
-						{
-							$aMatchedIPs += $matchedIP
-                                        	}
-					}
-				}
-			}
+                        If (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2012"))
+                        {
+                                foreach ($DHCPServer in $global:aDHCPServers) 
+                                {
+                                        $scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
+                                        foreach ($scope in $scopes) 
+                                        {
+                                                $aReservations = Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
+                                                foreach ($reservation in $aReservations) 
+                                                {
+                                                    $MAC = CleanMac($reservation.ClientID)
+                                                    $global:strCallingStation = CleanMac($global:strCallingStation)
+                                                    If ($global:strCallingStation -eq $MAC)
+                                                    {
+                                                        $aMatchedIPs += $reservation.IPAddress
+                                                    }
+                                                }
+                                        }
+                                }        
+                        }
+                        ElseIf (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2008") -or ((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2003"))
+                        {
+                                foreach ($DHCPServer in $global:aDHCPServers) 
+                                {
+                                        $scopes = Get-DHCPScope -Server $DHCPServer | select Address
+                                        foreach ($scope in $scopes) 
+                                        {
+                                               $aReservations = Get-DHCPReservation -Scope $scope.Address | select MACAddress, IPAddress
+                                                foreach ($reservation in $aReservations) 
+                                                {
+                                                    $MAC = CleanMac($reservation.MACAddress)
+                                                    $global:strCallingStation = CleanMac($global:strCallingStation)
+                                                    If ($global:strCallingStation -eq $MAC)
+                                                    {
+                                                        $aMatchedIPs += $reservation.IPAddress
+                                                    }
+                                                }
+                                        }
+                                }
+                        }
                 }
                 foreach ($address in $aMatchedIPs)
                 {
@@ -191,6 +201,7 @@ Function ProcessDHCPClients
                                 }
                         }
                         $strXMLLine = $strXMLLine + "</login></payload></uid-message>"
+                        Write-Host $strXMLLine
                         PostToAgent $strXMLLine
                 }
         }
