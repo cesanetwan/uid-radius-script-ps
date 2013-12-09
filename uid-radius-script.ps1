@@ -145,40 +145,49 @@ Function ProcessDHCPClients
                         {
                                 foreach ($DHCPServer in $global:aDHCPServers) 
                                 {
-                                        $scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
-                                        foreach ($scope in $scopes) 
-                                        {
-                                                $aReservations = Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
-                                                foreach ($reservation in $aReservations) 
-                                                {
+                                       $scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
+                                       foreach ($scope in $scopes) 
+                                       {
+                                               $aReservations = Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
+                                               foreach ($reservation in $aReservations) 
+                                               {
                                                     $MAC = CleanMac($reservation.ClientID)
                                                     $global:strCallingStation = CleanMac($global:strCallingStation)
                                                     If ($global:strCallingStation -eq $MAC)
-                                                    {
+                                                   {
                                                         $aMatchedIPs += $reservation.IPAddress
                                                     }
                                                 }
                                         }
-                                }        
+                                }
+                                         
                         }
                         ElseIf (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2008") -or ((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2003"))
                         {
-                                foreach ($DHCPServer in $global:aDHCPServers) 
+                                foreach ($DHCPServer in $global:aDHCPServers)
                                 {
-                                        $scopes = Get-DHCPScope -Server $DHCPServer | select Address
-                                        foreach ($scope in $scopes) 
-                                        {
-                                               $aReservations = Get-DHCPReservation -Scope $scope.Address | select MACAddress, IPAddress
-                                                foreach ($reservation in $aReservations) 
-                                                {
-                                                    $MAC = CleanMac($reservation.MACAddress)
-                                                    $global:strCallingStation = CleanMac($global:strCallingStation)
-                                                    If ($global:strCallingStation -eq $MAC)
-                                                    {
-                                                        $aMatchedIPs += $reservation.IPAddress
-                                                    }
-                                                }
+                                    $text = $(Invoke-Expression "cmd /c netsh dhcp server \\$DHCPServer show scope")
+                                    $scopes = @()
+                                    for($i=5;$i -lt $text.Count;$i++) { 
+                                        if(!$text[$i]) { break } 
+                                        $parts = $text[$i].Split("-") | %{ $_.Trim() }
+                                        $scopes += $parts[0]
+                                    }
+                                    foreach ($scope in $scopes) 
+                                    {
+                                        $text = $(Invoke-Expression "cmd /c netsh dhcp server \\$DHCPServer scope $scope show clients")
+                                        for($i=8;$i -lt $text.Count;$i++) { 
+                                        if(!$text[$i]) { break } 
+                                            $parts = $text[$i].Split("-") | %{ $_.Trim() }
+                                            $MAC = [string]::Join("-",$parts[2..7])
+                                            $MAC = CleanMac($MAC)
+                                            $global:strCallingStation = CleanMac($global:strCallingStation)
+                                            If ($MAC -eq $global:strCallingStation)
+                                            {
+                                                $aMatchedIPs += $parts[0]
+                                            }
                                         }
+                                    }
                                 }
                         }
                 }
