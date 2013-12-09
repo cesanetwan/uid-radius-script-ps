@@ -201,7 +201,6 @@ Function ProcessDHCPClients
                                 }
                         }
                         $strXMLLine = $strXMLLine + "</login></payload></uid-message>"
-                        Write-Host $strXMLLine
                         PostToAgent $strXMLLine
                 }
         }
