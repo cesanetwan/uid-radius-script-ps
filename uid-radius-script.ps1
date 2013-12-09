@@ -1,5 +1,5 @@
 param([string]$global:strEventUser, [string]$global:strCallingStation)
-$ErrorActionPreference = Stop
+$ErrorActionPreference = "Stop"
 
 $global:aClientIPs = @()
 $global:aExclusions = @()
