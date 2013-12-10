@@ -164,6 +164,24 @@ Function ProcessDHCPClients
                         }
                         ElseIf (((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2008") -or ((Get-WmiObject -class Win32_OperatingSystem).Caption).contains("2003"))
                         {
+                            $ScriptBlock = {
+	                                    param($DHCPServer, $scope, $strCallingStation, $aMatchedIPs)
+	                                    $text = $(Invoke-Expression "cmd /c netsh dhcp server \\$DHCPServer scope $scope show clients")
+	                                    for($i=8;$i -lt $text.Count;$i++) { 
+	                                        if(!$text[$i]) { break } 
+		                                    $parts = $text[$i].Split("-") | %{ $_.Trim() }
+		                                    $MAC = [string]::Join("-",$parts[2..7])
+		                                    $MAC = $MAC -replace "-", ""
+        	                                $MAC = $MAC -replace "\.", ""
+        	                                $MAC = $MAC -replace ":", ""
+        	                                $MAC = $MAC.ToLower()
+		                                    If ($MAC -eq $strCallingStation)
+		                                    {
+			                                    $aMatchedIPs += $parts[0]
+		                                    }
+	                                    }
+					                    Return $aMatchedIPs
+                             }
                                 foreach ($DHCPServer in $global:aDHCPServers)
                                 {
                                     $text = $(Invoke-Expression "cmd /c netsh dhcp server \\$DHCPServer show scope")
@@ -173,22 +191,31 @@ Function ProcessDHCPClients
                                         $parts = $text[$i].Split("-") | %{ $_.Trim() }
                                         $scopes += $parts[0]
                                     }
+                                    $global:strCallingStation = CleanMac($global:strCallingStation)
                                     foreach ($scope in $scopes) 
                                     {
-                                        $text = $(Invoke-Expression "cmd /c netsh dhcp server \\$DHCPServer scope $scope show clients")
-                                        for($i=8;$i -lt $text.Count;$i++) { 
-                                        if(!$text[$i]) { break } 
-                                            $parts = $text[$i].Split("-") | %{ $_.Trim() }
-                                            $MAC = [string]::Join("-",$parts[2..7])
-                                            $MAC = CleanMac($MAC)
-                                            $global:strCallingStation = CleanMac($global:strCallingStation)
-                                            If ($MAC -eq $global:strCallingStation)
-                                            {
-                                                $aMatchedIPs += $parts[0]
-                                            }
-                                        }
+                                        $args = @($DHCPServer, $scope, $global:strCallingStation, $aMatchedIPs)
+                                        Start-Job $ScriptBlock -ArgumentList $args
+                                        #$text = $(Invoke-Expression "cmd /c netsh dhcp server \\$DHCPServer scope $scope show clients")
+                                        #for($i=8;$i -lt $text.Count;$i++) { 
+                                        #if(!$text[$i]) { break } 
+                                        #    $parts = $text[$i].Split("-") | %{ $_.Trim() }
+                                        #    $MAC = [string]::Join("-",$parts[2..7])
+                                        #    $MAC = CleanMac($MAC)
+                                        #    $global:strCallingStation = CleanMac($global:strCallingStation)
+                                        #    If ($MAC -eq $global:strCallingStation)
+                                        #    {
+                                        #        $aMatchedIPs += $parts[0]
+                                        #    }
+                                        #}
                                     }
-                                }
+                                    While (Get-Job -State "Running") { Start-Sleep 2 }
+				                    $Data = ForEach ($Job in (Get-Job)) {
+                                        Receive-Job $Job
+                                        Remove-Job $Job
+                                    }
+				                    $aMatchedIps += $Data                  
+                        	}
                         }
                 }
                 foreach ($address in $aMatchedIPs)
