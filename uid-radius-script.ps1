@@ -148,13 +148,18 @@ Function ProcessDHCPClients
 			{
 				$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
 				foreach ($scope in $scopes) 
-				{
-                       			$matchedIP = (Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | ? ClientID -match $global:strCallingStation | select IPAddress).IPAddress
-                       			If (-Not ($matchedIP -eq $null))
-                       			{
-					    $aMatchedIPs += $matchedIP
-                       			}
-        			}
+                                       {
+                                               $aReservations = Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
+                                               foreach ($reservation in $aReservations) 
+                                               {
+                                                    $MAC = CleanMac($reservation.ClientID)
+                                                    $global:strCallingStation = CleanMac($global:strCallingStation)
+                                                    If ($global:strCallingStation -eq $MAC)
+                                                    {
+                                                        $aMatchedIPs += $reservation.IPAddress
+                                                    }
+                                                }
+                                        }
 			}
 		}
 		foreach ($address in $aMatchedIPs)
