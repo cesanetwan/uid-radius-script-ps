@@ -1,6 +1,8 @@
 param([string]$global:strEventUser, [string]$global:strCallingStation)
 $ErrorActionPreference = "Stop"
 
+$global:strVersion = "5.6ps"
+
 $global:aClientIPs = @()
 $global:aExclusions = @()
 $global:aDHCPServers = @()
@@ -193,7 +195,14 @@ Function ProcessDHCPClients
                 }
                 foreach ($address in $aMatchedIPs)
                 {
-                        [string]$strXMLLine = "<uid-message><version>1.0</version><type>update</type><payload><login>"
+                        If ($global:strProxy -eq "1")
+                        {
+                                [string]$strXMLLine = "<uid-message><version>1.0</version><scriptv>" + $global:strVersion + "</scriptv><type>update</type><payload><login>"
+                        }
+                        Else
+                        {
+                                [string]$strXMLLine = "<uid-message><version>1.0</version><type>update</type><payload><login>"
+                        }
                         If ($global:blnAgent -eq "1")
                         {
                                 $strXMLLine = $strXMLLine + "<entry name=""" + $global:strDomain + "\" + $global:strEventUser + """ ip=""" + $address + """/>"
