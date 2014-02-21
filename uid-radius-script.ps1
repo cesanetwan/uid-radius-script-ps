@@ -150,7 +150,7 @@ Function ProcessDHCPClients
                                        $scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
                                        foreach ($scope in $scopes) 
                                        {
-                                               $aReservations = Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
+                                               $aReservations = Get-DhcpServerv4Lease -CN $DHCPServer -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
                                                foreach ($reservation in $aReservations) 
                                                {
                                                     $MAC = CleanMac($reservation.ClientID)
