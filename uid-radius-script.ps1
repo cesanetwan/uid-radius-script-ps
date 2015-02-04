@@ -1,7 +1,7 @@
 param([string]$global:strEventUser, [string]$global:strCallingStation)
 $ErrorActionPreference = "Stop"
 
-$global:strVersion = "5.6ps"
+$global:strVersion = "5.8ps"
 
 $global:aClientIPs = @()
 $global:aExclusions = @()
@@ -18,6 +18,7 @@ $global:aDHCPServers = @()
 [string]$global:strDebug = ""
 [string]$global:strPostAddr = ""
 [string]$global:strProxy = ""
+[string]$global:blnMultipass = ""
 [xml]$global:cfgXML = $null
 
 Function LoadConfig
@@ -42,6 +43,7 @@ Function LoadConfig
 	$global:strDebug = $global:cfgXML.SelectSingleNode("/useridscriptconfig/Debug").get_InnerXML()
 	$global:strPostAddr = $global:cfgXML.SelectSingleNode("/useridscriptconfig/PostAddr").get_InnerXML()
 	$global:strProxy = $global:cfgXML.SelectSingleNode("/useridscriptconfig/Proxy").get_InnerXML()
+	$global:blnMultipass = $global:cfgXML.SelectSingleNode("/useridscriptconfig/Multipass").get_InnerXML()
 }
 
 Function CreateDefaultConfig
@@ -68,6 +70,7 @@ Function CreateDefaultConfig
 	$XmlWriter.WriteElementString('Timeout',"120")
 	$XmlWriter.WriteElementString('VSYS',"vsys00")
 	$XmlWriter.WriteElementString('PostAddr',"https://address.of.firewall.or.api/api/")
+	$XmlWriter.WriteElementString('Multipass',"0")
 	$XmlWriter.WriteEndElement()
 	$XmlWriter.WriteEndDocument()
 	$XmlWriter.Flush()
@@ -132,6 +135,10 @@ Function ProcessDHCPClients
 	{
 		$pos = $global:strEventUser.IndexOf("\")
 		$global:strEventUser = $global:strEventUser.Substring($pos+1)
+	} ElseIf ($global:strEventUser.contains("@"))
+	{
+		$pos = $global:strEventUser.IndexOf("@")
+		$global:strEventUser = $global:strEventUser.Substring(0,$pos)
 	}
 
 	If (-Not ($global:strEventUser.contains("$")) -and -Not ($global:strEventUser.contains("host/")) )
@@ -143,12 +150,13 @@ Function ProcessDHCPClients
 		}
 		Else
 		{
-			$aMatchedIPs = @()
-			foreach ($DHCPServer in $global:aDHCPServers) 
-			{
-				$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
-				foreach ($scope in $scopes) 
-                                       {
+			If ($global:blnMultipass -eq "0") {
+				$aMatchedIPs = @()
+				foreach ($DHCPServer in $global:aDHCPServers) 
+				{
+					$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
+					foreach ($scope in $scopes) 
+                                       	{
                                                $aReservations = Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
                                                foreach ($reservation in $aReservations) 
                                                {
@@ -160,6 +168,32 @@ Function ProcessDHCPClients
                                                     }
                                                 }
                                         }
+				}
+			} 
+			Else
+			{
+				$aMatchedIPs = @()
+				$mp = 0
+				While ($mp <2) {
+					foreach ($DHCPServer in $global:aDHCPServers) 
+					{
+						$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
+						foreach ($scope in $scopes) 
+                                       		{
+                                               		$aReservations = Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
+                                               		foreach ($reservation in $aReservations) 
+                                               		{
+                                                    		$MAC = CleanMac($reservation.ClientID)
+                                                    		$global:strCallingStation = CleanMac($global:strCallingStation)
+                                                    		If ($global:strCallingStation -eq $MAC)
+                                                    		{
+                                                        		$aMatchedIPs += $reservation.IPAddress
+                                                    		}
+                                                	}
+                                        	}
+					}
+					$mp = $mp + 1
+				}
 			}
 		}
 		foreach ($address in $aMatchedIPs)
@@ -192,7 +226,6 @@ Function ProcessDHCPClients
 		}
 	}
 }
-
 Try
 {
 	If (Test-Path -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\UIDConfig.xml") 
