@@ -16,4 +16,5 @@
 <Timeout>120</Timeout>
 <PostAddr>https://cefilter-api.cesa.catholic.edu.au/api/mapping</PostAddr>
 <Proxy>1</Proxy>
+<Multipass>0</Multipass>
 </useridscriptconfig>
