@@ -110,7 +110,7 @@ Function PostToAgent
     	{
         	[System.Net.HttpWebResponse]$response = [System.Net.HttpWebResponse]$request.GetResponse()     
         	$sr = New-Object System.IO.StreamReader($response.GetResponseStream())       
-        	$txt = $sr.ReadToEnd()  	
+        	$txt = $sr.ReadToEnd()	
     	}
     	catch [Net.WebException] { 
         	[System.Net.HttpWebResponse] $resp = [System.Net.HttpWebResponse] $_.Exception.Response  
@@ -157,7 +157,7 @@ Function ProcessDHCPClients
 					$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
 					foreach ($scope in $scopes) 
                                        	{
-                                               $aReservations = Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
+                                               $aReservations = Get-DhcpServerv4Lease -CN $DHCPServer -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
                                                foreach ($reservation in $aReservations) 
                                                {
                                                     $MAC = CleanMac($reservation.ClientID)
@@ -174,7 +174,7 @@ Function ProcessDHCPClients
 			{
 				$aMatchedIPs = @()
 				$mp = 0
-				While ($mp <2) {
+				While ($mp -lt 2) {
 					foreach ($DHCPServer in $global:aDHCPServers) 
 					{
 						$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
