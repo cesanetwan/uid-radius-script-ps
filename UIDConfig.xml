@@ -3,7 +3,7 @@
 <wlc>1.1.1.1</wlc>
 <wlc>1.1.1.2</wlc>
 </wireless-lan-controllers>
-<Domain>AD</Domain>
+<Domain>DOMAIN</Domain>
 <LogPath>C:\Windows\System32\LogFiles\npsaccounting\</LogPath>
 <LogFormat>DHCP</LogFormat>
 <AgentServer>127.0.0.1</AgentServer>
@@ -11,10 +11,10 @@
 <Debug>2</Debug>
 <DHCPServer>labboss</DHCPServer>
 <Key>Key</Key>
-<VSYS>vsys5</VSYS>
+<VSYS>vsys1</VSYS>
 <Agent>0</Agent>
 <Timeout>120</Timeout>
-<PostAddr>https://cefilter-api.cesa.catholic.edu.au/api/mapping</PostAddr>
+<PostAddr>https:/mapping-address.com</PostAddr>
 <Proxy>1</Proxy>
 <Multipass>0</Multipass>
 </useridscriptconfig>
