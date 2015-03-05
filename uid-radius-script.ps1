@@ -80,24 +80,44 @@ Function CreateDefaultConfig
 Function PostToAgent
 {
 	param([string]$strUserAgentData)
-	If ($global:blnAgent -eq 1)
+	If ([int]$global:blnAgent -eq 1)
 	{
 		$url = "https://" + $global:strAgentServer + ":" + $global:strAgentPort + "/"
 		[System.Net.HttpWebRequest]$request = [System.Net.HttpWebRequest] [System.Net.WebRequest]::Create($url)
 		$request.Method = "PUT"
+		If ([int]$global:strDebug -gt 0)
+		{
+			$message = "Local agent installed, posting data to " + $url
+			add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+		}
 	}
 	Else 
 	{
 		If ($global:strProxy -eq "1")
 		{
 		        $url = $global:strPostAddr
+			If ([int]$global:strDebug -gt 0)
+			{
+				$message = "Posting to XMLAPIProxy, URL: " + $url
+				add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+			}
 		}
 		Else
 		{
 		    $url = $global:strPostAddr + "?key=" + $global:strAPIKey + "&type=user-id&action=set&vsys=" + $global:strVsys + "&client=wget&file-name=UID.xml"
+			If ([int]$global:strDebug -gt 0)
+			{
+				$message = "Posting to XMLAPI on firewall, URL: " + $url
+				add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+			}
 		}
 		[System.Net.HttpWebRequest]$request = [System.Net.HttpWebRequest] [System.Net.WebRequest]::Create($url)
 		$request.Method = "POST"
+	}
+	If ([int]$global:strDebug -gt 0)
+	{
+		$message = "Starting post"
+		add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
 	}
 	$request.ContentType = "text/xml"
 	[System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
@@ -106,15 +126,25 @@ Function PostToAgent
 	[System.IO.Stream] $outputStream = [System.IO.Stream]$request.GetRequestStream()
         $outputStream.Write($bytes,0,$bytes.Length)  
         $outputStream.Close()
+	If ([int]$global:strDebug -gt 0)
+	{
+		$message = "Finished Post"
+		add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+	}
 	try
     	{
         	[System.Net.HttpWebResponse]$response = [System.Net.HttpWebResponse]$request.GetResponse()     
         	$sr = New-Object System.IO.StreamReader($response.GetResponseStream())       
-        	$txt = $sr.ReadToEnd()	
+        	$txt = $sr.ReadToEnd()
+		If ([int]$global:strDebug -gt 0)
+		{
+			$message = "Response: " + $txt
+			add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+		}
     	}
     	catch [Net.WebException] { 
         	[System.Net.HttpWebResponse] $resp = [System.Net.HttpWebResponse] $_.Exception.Response  
-        
+        	add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uidradiuserrors.log" -Value [string]$resp -Force
     	}
 }
 
@@ -147,23 +177,53 @@ Function ProcessDHCPClients
 		{
 			$aMatchedIPs = @()
 			$aMatchedIPs += $global:strCallingStation
+			If ([int]$global:strDebug -gt 0)
+			{
+				$message = "CallingStation is IP, no need for DHCP query"
+				add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+			}
 		}
 		Else
 		{
 			If ($global:blnMultipass -eq "0") {
+				If ([int]$global:strDebug -gt 0)
+				{
+					$message = "No MultiPass required, performing single pass"
+					add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+				}
 				$aMatchedIPs = @()
 				foreach ($DHCPServer in $global:aDHCPServers) 
 				{
+					If ([int]$global:strDebug -gt 0)
+					{
+						$message = "Querying DHCP Server: " + [string]$DHCPServer
+						add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+					}
 					$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
 					foreach ($scope in $scopes) 
                                        	{
+						If ([int]$global:strDebug -gt 0)
+						{
+							$message = "Checking Scope: " + [string]$scope
+							add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+						}
                                                $aReservations = Get-DhcpServerv4Lease -CN $DHCPServer -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
                                                foreach ($reservation in $aReservations) 
                                                {
                                                     $MAC = CleanMac($reservation.ClientID)
+						    If ([int]$global:strDebug -gt 1)
+						    {
+							$message = $MAC
+							add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+						    }
                                                     $global:strCallingStation = CleanMac($global:strCallingStation)
                                                     If ($global:strCallingStation -eq $MAC)
                                                     {
+							If ([int]$global:strDebug -gt 0)
+						        {
+							    $message = "MAC found, IP is: " + [string]$reservation.IPAddress
+							    add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+						        }
                                                         $aMatchedIPs += $reservation.IPAddress
                                                     }
                                                 }
@@ -172,21 +232,51 @@ Function ProcessDHCPClients
 			} 
 			Else
 			{
+				If ([int]$global:strDebug -gt 0)
+				{
+					$message = "MultiPass required, performing two passes"
+					add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+				}
 				$aMatchedIPs = @()
 				$mp = 0
 				While ($mp -lt 2) {
+					If ([int]$global:strDebug -gt 0)
+					{
+						$message = "Pass " + [string]$mp + ":"
+						add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+					}
 					foreach ($DHCPServer in $global:aDHCPServers) 
 					{
+						If ([int]$global:strDebug -gt 0)
+						{
+							$message = "Querying DHCP Server: " + [string]$DHCPServer
+							add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+						}
 						$scopes = Get-DhcpServerv4Scope -CN $DHCPServer | select ScopeId
 						foreach ($scope in $scopes) 
                                        		{
+							If ([int]$global:strDebug -gt 0)
+							{
+								$message = "Checking Scope: " + [string]$scope
+								add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+							}
                                                		$aReservations = Get-DhcpServerv4Lease -ScopeId $scope.ScopeID -AllLeases | select IPAddress, ClientID
                                                		foreach ($reservation in $aReservations) 
                                                		{
                                                     		$MAC = CleanMac($reservation.ClientID)
+								If ([int]$global:strDebug -gt 1)
+						    		{
+									$message = $MAC
+									add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+						    		}
                                                     		$global:strCallingStation = CleanMac($global:strCallingStation)
                                                     		If ($global:strCallingStation -eq $MAC)
                                                     		{
+									If ([int]$global:strDebug -gt 0)
+						        		{
+							    			$message = "MAC found, IP is: " + [string]$reservation.IPAddress
+							    			add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+						        		}
                                                         		$aMatchedIPs += $reservation.IPAddress
                                                     		}
                                                 	}
@@ -222,6 +312,11 @@ Function ProcessDHCPClients
 				}
 			}
 			$strXMLLine = $strXMLLine + "</login></payload></uid-message>"
+			If ([int]$global:strDebug -gt 0)
+			{
+				$message = "Posting mapping: " + $strXMLLine
+				add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+			}
 			PostToAgent $strXMLLine
 		}
 	}
@@ -238,6 +333,14 @@ Try
 		[xml]$global:cfgXML = Get-Content "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\UIDConfig.xml"
 	}
 	LoadConfig
+	If ([int]$global:strDebug -gt 0)
+	{
+		$ct = Get-Date
+		$message = "Script launched at " + [string]$ct + " with arguments " + $global:strEventUser + " & " + $global:strCallingStation
+		add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value "==========================================================================" -Force
+		add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+		add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value "Config Loaded Successfully" -Force
+	}
 
 	If ($global:strLogFormat -eq "DTS")
 	{
@@ -249,7 +352,24 @@ Try
 	}
 	ElseIf ($global:strLogFormat -eq "DHCP")
 	{
+		If ([int]$global:strDebug -gt 0)
+		{
+			$message = "Script in DHCP mode, starting DHCP Process"
+			add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+		}
 		ProcessDHCPClients
+		If ([int]$global:strDebug -gt 0)
+		{
+			$message = "Finished processing DHCP Clients"
+			add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+		}
+	}
+	If ([int]$global:strDebug -gt 0)
+	{
+		$ct = Get-Date
+		$message = "Script finished at: " + [string]$ct
+		add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value $message -Force
+		add-content -Path "C:\Program Files (x86)\Palo Alto Networks\User-ID Agent\uiddebug.log" -Value "==========================================================================" -Force
 	}
 }
 Catch
